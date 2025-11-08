@@ -14,16 +14,27 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 AUTH_PREFIX = "/auth"
+ENV = os.getenv("ENV", "dev")
 
 # FastAPI app
-app = FastAPI(
-    title="Authentication API",
-    description="API for managing user authentication.",
-    version="1.0.0",
-    openapi_url=f"{AUTH_PREFIX}/openapi.json",
-    docs_url=f"{AUTH_PREFIX}/docs",
-    redoc_url=f"{AUTH_PREFIX}/redoc",
-)
+if ENV == "prod":
+    app = FastAPI(
+        title="Authentication API",
+        description="API for managing user authentication.",
+        version="1.0.0",
+        openapi_url=None,
+        docs_url=None,
+        redoc_url=None,
+    )
+else:
+    app = FastAPI(
+        title="Authentication API",
+        description="API for managing user authentication.",
+        version="1.0.0",
+        openapi_url=f"{AUTH_PREFIX}/openapi.json",
+        docs_url=f"{AUTH_PREFIX}/docs",
+        redoc_url=f"{AUTH_PREFIX}/redoc",
+    )
 
 app.add_middleware(
     CORSMiddleware,
