@@ -2,9 +2,12 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
 from app.models import (
-    SignupRequest,LoginRequest, RefreshTokenRequest
+    SignupRequest,LoginRequest, RefreshTokenRequest, UserUpdateRequest
 )
 from app.auth_handler import verify_jwt_token
+from app.supabase_client import (
+    anon_supabase_client, user_supabase_client
+)
 import os
 from dotenv import load_dotenv
 import httpx
@@ -14,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 AUTH_PREFIX = "/auth"
+USER_PREFIX = "/user"
 ENV = os.getenv("ENV", "dev")
 
 # FastAPI app
@@ -50,15 +54,12 @@ app.add_middleware(
 # Security and Supabase configurations
 security = HTTPBearer()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY or not SUPABASE_SERVICE_ROLE_KEY:
+if not SUPABASE_URL or not SUPABASE_ANON_KEY or not SUPABASE_SERVICE_ROLE_KEY:
     raise ValueError(
-        "Missing SUPABASE_URL, SUPABASE_KEY, or SUPABASE_SERVICE_ROLE_KEY in environment variables")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        "Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY in environment variables")
 
 # Endpoints
 @app.get(f"{AUTH_PREFIX}/")
@@ -69,6 +70,7 @@ async def root():
 @app.post(f"{AUTH_PREFIX}/signup")
 async def signup(request: SignupRequest):
     try:
+        supabase = anon_supabase_client()
         user = supabase.auth.sign_up({
             "email": request.email,
             "password": request.password,
@@ -81,6 +83,7 @@ async def signup(request: SignupRequest):
 @app.post(f"{AUTH_PREFIX}/login")
 async def login(request: LoginRequest):
     try:
+        supabase = anon_supabase_client()
         user = supabase.auth.sign_in_with_password({
             "email": request.email,
             "password": request.password
@@ -95,7 +98,7 @@ async def refresh_token(request: RefreshTokenRequest, credentials: HTTPAuthoriza
     try:
         token = credentials.credentials
         url = f"{SUPABASE_URL}/auth/v1/token?grant_type=refresh_token"
-        headers = {"apikey": SUPABASE_KEY, "Content-Type": "application/json"}
+        headers = {"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json"}
         payload = {"refresh_token": request.refresh_token}
 
         async with httpx.AsyncClient() as client:
@@ -115,3 +118,38 @@ async def refresh_token(request: RefreshTokenRequest, credentials: HTTPAuthoriza
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(
             e) or "Unexpected error refreshing access token.")
+    
+@app.get(f"{AUTH_PREFIX}/me", dependencies=[Depends(verify_jwt_token)])
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        supabase = user_supabase_client(token)
+        user = supabase.auth.get_user(token)
+        return user
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+
+# Get user by ID
+@app.get(f"{USER_PREFIX}/{{user_id}}", dependencies=[Depends(verify_jwt_token)])
+async def get_user_by_id(user_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        supabase = user_supabase_client(token)
+        supabase.auth.set_session(access_token=token, refresh_token="")
+        user = supabase.table("users_data").select("*").eq("id", user_id).single().execute()
+        return user.data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+# Update users data row
+@app.put(f"{USER_PREFIX}/{{user_id}}", dependencies=[Depends(verify_jwt_token)])
+async def update_user(user_id: str, update_data: UserUpdateRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        supabase = user_supabase_client(token)
+        supabase.auth.set_session(access_token=token, refresh_token="")
+        user = supabase.table("users_data").update(update_data.dict(exclude_unset=True)).eq("id", user_id).execute()
+        return user.data
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
