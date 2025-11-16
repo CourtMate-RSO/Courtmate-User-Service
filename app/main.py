@@ -2,11 +2,11 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from supabase import create_client, Client
 from app.models import (
-    SignupRequest,LoginRequest, RefreshTokenRequest, UserUpdateRequest
+    SignupRequest, LoginRequest, GoogleAuthRequest, RefreshTokenRequest, UserUpdateRequest
 )
 from app.auth_handler import verify_jwt_token
 from app.supabase_client import (
-    anon_supabase_client, user_supabase_client
+    anon_supabase_client, user_supabase_client, admin_supabase_client
 )
 import os
 from dotenv import load_dotenv
@@ -69,26 +69,93 @@ async def root():
 
 @app.post(f"{AUTH_PREFIX}/signup")
 async def signup(request: SignupRequest):
+    """Sign up with email and password"""
     try:
         supabase = anon_supabase_client()
-        user = supabase.auth.sign_up({
+        response = supabase.auth.sign_up({
             "email": request.email,
             "password": request.password,
         })
-        return user
+        
+        if not response.user:
+            raise HTTPException(status_code=400, detail="Signup failed")
+        
+        return {
+            "user": {
+                "id": response.user.id,
+                "email": response.user.email,
+            },
+            "access_token": response.session.access_token if response.session else None,
+            "refresh_token": response.session.refresh_token if response.session else None,
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post(f"{AUTH_PREFIX}/login")
 async def login(request: LoginRequest):
+    """Login with email and password"""
     try:
         supabase = anon_supabase_client()
-        user = supabase.auth.sign_in_with_password({
+        response = supabase.auth.sign_in_with_password({
             "email": request.email,
             "password": request.password
         })
-        return user
+        
+        if not response.user or not response.session:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        return {
+            "user": {
+                "id": response.user.id,
+                "email": response.user.email,
+            },
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post(f"{AUTH_PREFIX}/google")
+async def google_auth(request: GoogleAuthRequest):
+    """Authenticate with Google OAuth"""
+    try:
+        supabase = anon_supabase_client()
+        
+        # Sign in with Google OAuth using Supabase
+        response = supabase.auth.sign_in_with_id_token({
+            "provider": "google",
+            "token": request.id_token,
+        })
+        
+        if not response.user or not response.session:
+            raise HTTPException(status_code=401, detail="Google authentication failed")
+        
+        # Check if user profile exists in users_data table
+        admin_supabase = admin_supabase_client()
+        try:
+            user_data = admin_supabase.table("users_data").select("*").eq("id", response.user.id).execute()
+            
+            if not user_data.data or len(user_data.data) == 0:
+                # Create user profile for new Google sign-in
+                admin_supabase.table("users_data").insert({
+                    "id": response.user.id,
+                    "email": request.email,
+                    "full_name": request.name or request.email.split("@")[0],
+                }).execute()
+        except Exception as profile_error:
+            # If table doesn't exist or other errors, just log it
+            print(f"User profile creation skipped: {profile_error}")
+        
+        return {
+            "user": {
+                "id": response.user.id,
+                "email": response.user.email,
+            },
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

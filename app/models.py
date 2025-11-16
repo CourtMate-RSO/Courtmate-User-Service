@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -7,6 +8,11 @@ class LoginRequest(BaseModel):
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    email: EmailStr
+    name: Optional[str] = None
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
