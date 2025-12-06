@@ -203,10 +203,12 @@ async def get_user_by_id(user_id: str, credentials: HTTPAuthorizationCredentials
     try:
         token = credentials.credentials
         supabase = user_supabase_client(token)
-        supabase.auth.set_session(access_token=token, refresh_token="")
+        
+        # Query users_data table - RLS policies will handle authorization
         user = supabase.table("users_data").select("*").eq("id", user_id).single().execute()
         return user.data
     except Exception as e:
+        print(f"Error fetching user {user_id}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     
 # Update users data row
@@ -215,8 +217,12 @@ async def update_user(user_id: str, update_data: UserUpdateRequest, credentials:
     try:
         token = credentials.credentials
         supabase = user_supabase_client(token)
-        supabase.auth.set_session(access_token=token, refresh_token="")
+        
+        # Update user data - RLS policies will handle authorization
         user = supabase.table("users_data").update(update_data.dict(exclude_unset=True)).eq("id", user_id).execute()
         return user.data
+    except Exception as e:
+        print(f"Error updating user {user_id}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
