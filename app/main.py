@@ -197,16 +197,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=400, detail=str(e))
     
 
-# Get user by ID
+# Get user by ID using GraphQL
 @app.get(f"{USER_PREFIX}/{{user_id}}", dependencies=[Depends(verify_jwt_token)])
 async def get_user_by_id(user_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials
-        supabase = user_supabase_client(token)
         
-        # Query users_data table - RLS policies will handle authorization
-        user = supabase.table("users_data").select("*").eq("id", user_id).single().execute()
-        return user.data
+        # Use GraphQL instead of Supabase client
+        from app.graphql_client import get_user_by_id_graphql
+        user = get_user_by_id_graphql(user_id, token)
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return user
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error fetching user {user_id}: {e}")
         raise HTTPException(status_code=400, detail=str(e))

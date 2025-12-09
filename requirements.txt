@@ -4,3 +4,4 @@ pydantic
 supabase
 PyJWT
 python-dotenv
+gql[all]
