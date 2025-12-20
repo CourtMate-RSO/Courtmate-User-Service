@@ -1,0 +1,61 @@
+replicaCount: 1
+
+image:
+  repository: courtmateacr.azurecr.io/user-service
+  tag: dev
+  pullPolicy: IfNotPresent
+
+# Container port
+containerPort: 8080
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  host: ""  # Optional - leave empty for no host requirement
+  path: /api/users(/|$)(.*)
+
+# Health check probes
+probes:
+  enabled: true
+  path: /health
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Environment variables from secret
+envFromSecret:
+  enabled: true
+  secretName: user-service-secrets
+
+# Additional environment variables
+env:
+  - name: ENV
+    value: "prod"
+
+# Override names
+nameOverride: ""
+fullnameOverride: ""

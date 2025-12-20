@@ -62,6 +62,12 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY or not SUPABASE_SERVICE_ROLE_KEY:
         "Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY in environment variables")
 
 # Endpoints
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "user-service"}
+
+
 @app.get(f"{AUTH_PREFIX}/")
 async def root():
     return {"message": "Hello World"}
