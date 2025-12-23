@@ -5,3 +5,6 @@ supabase
 PyJWT
 python-dotenv
 gql[all]
+python-json-logger
+prometheus-client
+prometheus-fastapi-instrumentator
