@@ -37,25 +37,15 @@ AUTH_PREFIX = "/auth"
 USER_PREFIX = "/user"
 ENV = os.getenv("ENV", "dev")
 
-# FastAPI app
-if ENV == "prod":
-    app = FastAPI(
-        title="Authentication API",
-        description="API for managing user authentication.",
-        version="1.0.0",
-        openapi_url=None,
-        docs_url=None,
-        redoc_url=None,
-    )
-else:
-    app = FastAPI(
-        title="Authentication API",
-        description="API for managing user authentication.",
-        version="1.0.0",
-        openapi_url=f"{AUTH_PREFIX}/openapi.json",
-        docs_url=f"{AUTH_PREFIX}/docs",
-        redoc_url=f"{AUTH_PREFIX}/redoc",
-    )
+# FastAPI app - Enable docs for documentation generation
+app = FastAPI(
+    title="User & Authentication API",
+    description="API for user management and authentication with Supabase.",
+    version="1.0.0",
+    openapi_url=f"{AUTH_PREFIX}/openapi.json",
+    docs_url=f"{AUTH_PREFIX}/docs",
+    redoc_url=f"{AUTH_PREFIX}/redoc",
+)
 
 app.add_middleware(
     CORSMiddleware,
