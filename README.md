@@ -31,15 +31,15 @@ FastAPI microservice responsible for user authentication, profile management and
 
 ## API Endpoints
 
-Primary endpoints are prefixed with `/auth` or `/user` (see routes in `app/main.py` / `app/auth_handler.py`):
+Primary endpoints are exposed under the `/api/users` prefix (see routes in `app/main.py` / `app/auth_handler.py`):
 
-- `POST /auth/signup` — Register new user (email, password)
-- `POST /auth/login` — Login and return JWT
-- `POST /auth/google` — Google OAuth callback (token exchange)
-- `GET /auth/me` — Get current user from token
-- `GET /user/{user_id}` — Retrieve user profile
-- `PUT /user/{user_id}` — Update user profile
-- `GET /health` — Health check
+- `GET /api/users/health` — Health check
+- `POST /api/users/auth/signup` — Register new user (email, password)
+- `POST /api/users/auth/login` — Login and return JWT
+- `POST /api/users/auth/google` — Google OAuth login
+- `POST /api/users/auth/refresh` — Refresh access token
+- `GET /api/users/user/me` — Get profile of authenticated user (requires bearer token)
+- `PUT /api/users/user/update` — Update authenticated user's profile (requires bearer token)
 
 ## Project Structure
 
