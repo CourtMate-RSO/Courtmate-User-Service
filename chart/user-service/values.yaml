@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: courtmateacr.azurecr.io/user-service
+  repository: courtmate603fc8acr.azurecr.io/user-service
   tag: dev
   pullPolicy: IfNotPresent
 
@@ -19,8 +19,12 @@ ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
-  host: ""  # Optional - leave empty for no host requirement
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  host: "courtmate.duckdns.org"
   path: /api/users(/|$)(.*)
+  tls:
+    enabled: true
+    secretName: user-service-tls
 
 # Health check probes
 probes:
